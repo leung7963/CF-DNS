@@ -2,7 +2,7 @@ name: 'dns_cf_push'
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '0 */1 * * *'
 
 jobs:
   build:
@@ -23,4 +23,3 @@ jobs:
           CF_DNS_NAME: ${{ secrets.CF_DNS_NAME }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: python dnscf.py
-
