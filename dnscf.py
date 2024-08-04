@@ -13,8 +13,8 @@ CF_DNS_NAME     =   os.environ["CF_DNS_NAME"]
 # pushplus_token
 PUSHPLUS_TOKEN  =   os.environ["PUSHPLUS_TOKEN"]
 
-BOT_API_TOKEN = os.environ["BOT_API_TOKEN"]
-CHAT_ID_API = os.environ["CHAT_ID_API"]
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+CHAT_ID = os.environ["CHAT_ID"]
 
 headers = {
     'Authorization': f'Bearer {CF_API_TOKEN}',
