@@ -72,11 +72,11 @@ def update_dns_record(record_id, name, cf_ip):
 
 # 消息推送
 def push_plus(content):
-    url = 'http://www.pushplus.plus/send'
+    url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
     data = {
-        "token": PUSHPLUS_TOKEN,
+        "chat_id": CHAT_ID,
         "title": "IP优选DNSCF推送",
-        "content": content,
+        "text": content,
         "template": "markdown",
         "channel": "wechat"
     }
