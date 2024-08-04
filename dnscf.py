@@ -87,7 +87,7 @@ def main():
     # 获取最新优选IP
     ip_addresses_str = get_cf_speed_test_ip()
     cfips = ip_addresses_str.split('\n')
-    for ip_addresses in cfips [:5]
+    for ip_addresses in cfips [:5]:
     dns_records = get_dns_records(CF_DNS_NAME)
     push_plus_content = []
     # 遍历 IP 地址列表
