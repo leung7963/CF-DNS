@@ -3,10 +3,7 @@ import traceback
 import time
 import os
 import json
-import telebot
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-CHATID = os.environ["CHATID"]
 
 # API 密钥
 CF_API_TOKEN    =   os.environ["CF_API_TOKEN"]
@@ -74,8 +71,6 @@ def update_dns_record(record_id, name, cf_ip):
 
 # 消息推送
 def push_plus(content):
-    bot = telebot.TeleBot(BOT_TOKEN)
-    bot.send_message(chat_id=CHATID, text=content)
     url = 'http://www.pushplus.plus/send'
     data = {
         "token": PUSHPLUS_TOKEN,
