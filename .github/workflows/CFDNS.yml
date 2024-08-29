@@ -36,4 +36,4 @@ jobs:
         ZONE_ID: ${{ secrets.ZONE_ID }}
         DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
       run: |
-        python bestdomain.py
+        python dnscf.py
