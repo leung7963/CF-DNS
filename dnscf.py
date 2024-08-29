@@ -31,7 +31,7 @@ client = DnsClient.new_builder() \
 
 # 从URL获取IP地址
 try:
-    response = requests.get('https://raw.githubusercontent.com/leung7963/iptest/main/proxyip.txt')
+    response = requests.get('https://raw.githubusercontent.com/leung7963/CFIPS/main/ip.txt')
     ip_list = response.text.splitlines()
     print(f"已获取IP地址列表: {ip_list}")
 except requests.RequestException as e:
