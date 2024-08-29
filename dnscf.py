@@ -7,19 +7,17 @@ from huaweicloudsdkcore.region.region import Region
 from huaweicloudsdkdns.v2 import *
 from huaweicloudsdkdns.v2.region.dns_region import DnsRegion
 
-
-# 设置华为云的AK和SK
+# Set Huawei Cloud credentials
 ak = os.environ["HUAWEI_ACCESS_KEY"]
 sk = os.environ["HUAWEI_SECRET_KEY"]
 project_id = os.environ["PROJECT_ID"]
-zone_id =   os.environ["ZONE_ID"] #DNS Zone ID
-domain_name = os.environ["DOMAIN_NAME"]  # 你要操作的域名
+zone_id = os.environ["ZONE_ID"]  # DNS Zone ID
+domain_name = os.environ["DOMAIN_NAME"]  # Your domain name
 
-
-# 设置区域，例如：华北-北京四（cn-north-4），根据实际情况设置
+# Set the region, e.g., 'ap-southeast-1'
 region = 'ap-southeast-1'
 
-# 创建客户端
+# Create client
 credentials = BasicCredentials(ak, sk, project_id)
 config = HttpConfig.get_default_config()
 
@@ -29,54 +27,50 @@ client = DnsClient.new_builder() \
     .with_http_config(config) \
     .build()
 
-# 从URL获取IP地址
+# Fetch IP addresses from URL
 try:
-    response = requests.get('https://raw.githubusercontent.com/leung7963/CFIPS/main/ip.txt')
+    response = requests.get('https://raw.githubusercontent.com/leung7963/iptest/main/proxyip.txt')
     ip_list = response.text.splitlines()
-    print(f"已获取IP地址列表: {ip_list}")
+    print(f"IP addresses fetched: {ip_list}")
 except requests.RequestException as e:
-    print(f"获取IP地址时出现错误: {str(e)}")
+    print(f"Error fetching IP addresses: {str(e)}")
     ip_list = []
 
-# 检查是否获取到IP地址
+# Check if IP addresses were retrieved
 if not ip_list:
-    print("未获取到任何IP地址，程序终止。")
+    print("No IP addresses retrieved. Exiting.")
 else:
-    # 删除域名下所有可删除的DNS记录
+    # Delete all A records
     try:
         list_record_sets_request = ListRecordSetsRequest()
         list_record_sets_request.zone_id = zone_id
         record_sets = client.list_record_sets(list_record_sets_request).recordsets
 
         for record_set in record_sets:
-            if record_set.status != "ACTIVE" or record_set.name == "@." + domain_name or record_set.name == "www." + domain_name:
-                # 跳过不可删除的记录集
-                print(f"跳过默认记录集: {record_set.name}")
-                continue
-
-            delete_record_set_request = DeleteRecordSetRequest(
-                zone_id=zone_id, 
-                recordset_id=record_set.id
-            )
-            client.delete_record_set(delete_record_set_request)
-            print(f"已删除记录集: {record_set.name}")
+            if record_set.type == "A":
+                delete_record_set_request = DeleteRecordSetRequest(
+                    zone_id=zone_id, 
+                    recordset_id=record_set.id
+                )
+                client.delete_record_set(delete_record_set_request)
+                print(f"Deleted A record: {record_set.name}")
     except exceptions.ClientRequestException as e:
-        print(f"删除DNS记录时出现错误: {e.status_code} - {e.error_msg}")
+        print(f"Error deleting DNS records: {e.status_code} - {e.error_msg}")
 
- # 创建新的DNS记录
+    # Create new DNS A records
     try:
         for ip in ip_list:
             create_record_set_request = CreateRecordSetWithLineRequest(
-            zone_id=zone_id,
-            body={
-                "name": domain_name + ".",
-                "type": "A",
-                "ttl": 1,
-                "records": [ip],
-                "weight": "1"
+                zone_id=zone_id,
+                body={
+                    "name": domain_name + ".",
+                    "type": "A",
+                    "ttl": 1,
+                    "records": [ip],
+                    "weight": "1"
                 }
             )
             response = client.create_record_set_with_line(create_record_set_request)
-            print(f"已创建新的DNS记录: {ip}")
+            print(f"Created new DNS A record: {ip}")
     except exceptions.ClientRequestException as e:
-        print(f"创建DNS记录时出现错误: {e.status_code} - {e.error_msg}")
+        print(f"Error creating DNS records: {e.status_code} - {e.error_msg}")
