@@ -1,104 +1,82 @@
-import requests
-import traceback
-import time
 import os
-import json
+import requests
+from huaweicloudsdkcore.auth.credentials import BasicCredentials
+from huaweicloudsdkcore.exceptions import exceptions
+from huaweicloudsdkcore.http.http_config import HttpConfig
+from huaweicloudsdkcore.region.region import Region
+from huaweicloudsdkdns.v2 import *
+from huaweicloudsdkdns.v2.region.dns_region import DnsRegion
 
 
-# API 密钥
-CF_API_TOKEN    =   os.environ["CF_API_TOKEN"]
-CF_ZONE_ID      =   os.environ["CF_ZONE_ID"]
-CF_DNS_NAME     =   os.environ["CF_DNS_NAME"]
+# 设置华为云的AK和SK
+ak = os.environ["HUAWEI_ACCESS_KEY"]
+sk = os.environ["HUAWEI_SECRET_KEY"]
+project_id = os.environ["PROJECT_ID"]
+zone_id =   os.environ["ZONE_ID"] #DNS Zone ID
+domain_name = os.environ["DOMAIN_NAME"]  # 你要操作的域名
 
-# pushplus_token
-PUSHPLUS_TOKEN  =   os.environ["PUSHPLUS_TOKEN"]
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-CHAT_ID = os.environ["CHAT_ID"]
+# 设置区域，例如：华北-北京四（cn-north-4），根据实际情况设置
+region = 'ap-southeast-1'
 
-headers = {
-    'Authorization': f'Bearer {CF_API_TOKEN}',
-    'Content-Type': 'application/json'
-}
+# 创建客户端
+credentials = BasicCredentials(ak, sk, project_id)
+config = HttpConfig.get_default_config()
 
-def get_cf_speed_test_ip(timeout=10, max_retries=5):
-    for attempt in range(max_retries):
-        try:
-            # 发送 GET 请求，设置超时
-            response = requests.get('https://raw.githubusercontent.com/leung7963/CFIPS/main/ip.txt', timeout=timeout)
-            # 检查响应状态码
-            if response.status_code == 200:
-                return response.text
-        except Exception as e:
-            traceback.print_exc()
-            print(f"get_cf_speed_test_ip Request failed (attempt {attempt + 1}/{max_retries}): {e}")
-    # 如果所有尝试都失败，返回 None 或者抛出异常，根据需要进行处理
-    return None
+client = DnsClient.new_builder() \
+    .with_credentials(credentials) \
+    .with_region(Region(region, f"https://dns.{region}.myhuaweicloud.com")) \
+    .with_http_config(config) \
+    .build()
 
-# 获取 DNS 记录
-def get_dns_records(name):
-    def_info = []
-    url = f'https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records'
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        records = response.json()['result']
-        for record in records:
-            if record['name'] == name:
-                def_info.append(record['id'])
-        return def_info
-    else:
-        print('Error fetching DNS records:', response.text)
+# 从URL获取IP地址
+try:
+    response = requests.get('https://raw.githubusercontent.com/leung7963/iptest/main/proxyip.txt')
+    ip_list = response.text.splitlines()
+    print(f"已获取IP地址列表: {ip_list}")
+except requests.RequestException as e:
+    print(f"获取IP地址时出现错误: {str(e)}")
+    ip_list = []
 
-# 更新 DNS 记录
-def update_dns_record(record_id, name, cf_ip):
-    url = f'https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records/{record_id}'
-    data = {
-        'type': 'A',
-        'name': name,
-        'content': cf_ip,
-        'ttl': 1
-    }
+# 检查是否获取到IP地址
+if not ip_list:
+    print("未获取到任何IP地址，程序终止。")
+else:
+    # 删除域名下所有可删除的DNS记录
+    try:
+        list_record_sets_request = ListRecordSetsRequest()
+        list_record_sets_request.zone_id = zone_id
+        record_sets = client.list_record_sets(list_record_sets_request).recordsets
 
-    response = requests.put(url, headers=headers, json=data)
+        for record_set in record_sets:
+            if record_set.status != "ACTIVE" or record_set.name == "@." + domain_name or record_set.name == "www." + domain_name:
+                # 跳过不可删除的记录集
+                print(f"跳过默认记录集: {record_set.name}")
+                continue
 
-    if response.status_code == 200:
-        print(f"cf_dns_change success: ---- Time: " + str(
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + " ---- ip：" + str(cf_ip))
-        return "ip:" + str(cf_ip) + "解析" + str(name) + "成功"
-    else:
-        traceback.print_exc()
-        print(f"cf_dns_change ERROR: ---- Time: " + str(
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + " ---- MESSAGE: " + str(name))
-        return "ip:" + str(cf_ip) + "解析" + str(name) + "失败"
+            delete_record_set_request = DeleteRecordSetRequest(
+                zone_id=zone_id, 
+                recordset_id=record_set.id
+            )
+            client.delete_record_set(delete_record_set_request)
+            print(f"已删除记录集: {record_set.name}")
+    except exceptions.ClientRequestException as e:
+        print(f"删除DNS记录时出现错误: {e.status_code} - {e.error_msg}")
 
-# 消息推送
-def push_plus(content):
-    url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
-    data = {
-        "chat_id": CHAT_ID,
-        "title": "IP优选DNSCF推送",
-        "text": content,
-        "template": "markdown",
-        "channel": "wechat"
-    }
-    body = json.dumps(data).encode(encoding='utf-8')
-    headers = {'Content-Type': 'application/json'}
-    requests.post(url, data=body, headers=headers)
-
-# 主函数
-def main():
-    # 获取最新优选IP
-    ip_addresses_str = get_cf_speed_test_ip()
-    ip_addresses = ip_addresses_str.split()
-    dns_records = get_dns_records(CF_DNS_NAME)
-    push_plus_content = []
-    # 遍历 IP 地址列表
-    for index, ip_address in enumerate(ip_addresses[:3]):
-        # 执行 DNS 变更
-        dns = update_dns_record(dns_records[index], CF_DNS_NAME, ip_address)
-        push_plus_content.append(dns)
-
-    push_plus('\n'.join(push_plus_content))
-
-if __name__ == '__main__':
-    main()
+ # 创建新的DNS记录
+    try:
+        for ip in ip_list:
+            create_record_set_request = CreateRecordSetWithLineRequest(
+            zone_id=zone_id,
+            body={
+                "name": domain_name + ".",
+                "type": "A",
+                "ttl": 1,
+                "records": [ip],
+                "weight": "1"
+                }
+            )
+            response = client.create_record_set_with_line(create_record_set_request)
+            print(f"已创建新的DNS记录: {ip}")
+    except exceptions.ClientRequestException as e:
+        print(f"创建DNS记录时出现错误: {e.status_code} - {e.error_msg}")
