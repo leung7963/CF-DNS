@@ -30,7 +30,7 @@ client = DnsClient.new_builder() \
 
 # Fetch IP addresses from the URL
 try:
-    response = requests.get('https://raw.githubusercontent.com/leung7963/iptest/main/proxyip.txt')
+    response = requests.get('https://raw.githubusercontent.com/leung7963/CFIPS/main/ip.txt')
     response.raise_for_status()
     ip_list = response.text.splitlines()
     print(f"Retrieved IP addresses: {ip_list}")
