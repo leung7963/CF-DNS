@@ -50,7 +50,7 @@ else:
 
         for record_set in record_sets:
             # Delete only 'A' type records that match DOMAIN_NAME
-            if record_set.type == "A" and record_set.name == domain_name + ".":
+            if record_set.type == "CNAME" and record_set.name == domain_name + ".":
                 delete_record_set_request = DeleteRecordSetRequest(
                     zone_id=zone_id,
                     recordset_id=record_set.id
