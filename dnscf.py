@@ -40,8 +40,8 @@ except requests.RequestException as e:
 
 # Check if any IP addresses were retrieved
 if not ip_list:
-    print("No IP addresses found, exiting program.")
-else:
+    #print("No IP addresses found, exiting program.")
+#else:
     # Delete only 'A' records matching the DOMAIN_NAME
     try:
         list_record_sets_request = ListRecordSetsRequest()
