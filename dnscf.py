@@ -39,34 +39,31 @@ except requests.RequestException as e:
     ip_list = []
 
 # Check if any IP addresses were retrieved
-if not ip_list:
+#if not ip_list:
     #print("No IP addresses found, exiting program.")
 #else:
-    # Delete only 'A' records matching the DOMAIN_NAME
+    # Delete all records associated with the domain
     try:
         list_record_sets_request = ListRecordSetsRequest()
         list_record_sets_request.zone_id = zone_id
         record_sets = client.list_record_sets(list_record_sets_request).recordsets
 
         for record_set in record_sets:
-            # Delete only 'A' type records that match DOMAIN_NAME
-            if record_set.type == "CNAME" and record_set.name == domain_name + ".":
-                delete_record_set_request = DeleteRecordSetRequest(
-                    zone_id=zone_id,
-                    recordset_id=record_set.id
-                )
-                try:
-                    client.delete_record_set(delete_record_set_request)
-                    print(f"Deleted 'A' record: {record_set.name}")
-                except exceptions.ClientRequestException as e:
-                    if e.status_code == 404:
-                        print(f"Record {record_set.name} not found, skipping.")
-                    else:
-                        print(f"Error deleting DNS record: {e.status_code} - {e.error_msg}")
-                # Delay to avoid concurrency issues
-                time.sleep(1)
-            else:
-                print(f"Skipping record: {record_set.name} (type: {record_set.type})")
+            # Delete all records, regardless of type
+            delete_record_set_request = DeleteRecordSetRequest(
+                zone_id=zone_id,
+                recordset_id=record_set.id
+            )
+            try:
+                client.delete_record_set(delete_record_set_request)
+                print(f"Deleted record: {record_set.name} (type: {record_set.type})")
+            except exceptions.ClientRequestException as e:
+                if e.status_code == 404:
+                    print(f"Record {record_set.name} not found, skipping.")
+                else:
+                    print(f"Error deleting DNS record: {e.status_code} - {e.error_msg}")
+            # Delay to avoid concurrency issues
+            time.sleep(1)
 
     except exceptions.ClientRequestException as e:
         print(f"Error retrieving or deleting DNS records: {e.status_code} - {e.error_msg}")
