@@ -39,7 +39,7 @@ except requests.RequestException as e:
     ip_list = []
 
 # Check if any IP addresses were retrieved
-#if not ip_list:
+if not ip_list:
     #print("No IP addresses found, exiting program.")
 #else:
     # Delete all records associated with the domain
