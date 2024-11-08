@@ -3,6 +3,7 @@ import requests
 from huaweicloudsdkcore.auth.credentials import BasicCredentials
 from huaweicloudsdkcore.exceptions import exceptions
 from huaweicloudsdkcore.http.http_config import HttpConfig
+from huaweicloudsdkcore.region.region import Region
 from huaweicloudsdkdns.v2 import *
 from huaweicloudsdkdns.v2.region.dns_region import DnsRegion
 import time
@@ -23,7 +24,7 @@ config = HttpConfig.get_default_config()
 
 client = DnsClient.new_builder() \
     .with_credentials(credentials) \
-    .with_region(DnsRegion.value_of(region)) \
+    .with_region(Region(region, f"https://dns.{region}.myhuaweicloud.com")) \
     .with_http_config(config) \
     .build()
 
@@ -39,33 +40,36 @@ except requests.RequestException as e:
 
 # Check if any IP addresses were retrieved
 if not ip_list:
-    #print("No IP addresses found, exiting program.")
-#else:
-    # Batch delete records
+    print("No IP addresses found, exiting program.")
+else:
+    # Delete only 'A' records matching the DOMAIN_NAME
     try:
         list_record_sets_request = ListRecordSetsRequest()
         list_record_sets_request.zone_id = zone_id
         record_sets = client.list_record_sets(list_record_sets_request).recordsets
 
-        # Collect all record IDs for deletion
-        recordset_ids = [record_set.id for record_set in record_sets]
-
-        if recordset_ids:
-            batch_delete_request = BatchDeleteRecordSetWithLineRequest()
-            batch_delete_request.body = BatchDeleteRecordSetWithLineRequestBody(
-                recordset_ids=recordset_ids
-            )
-
-            try:
-                response = client.batch_delete_record_set_with_line(batch_delete_request)
-                print(f"Successfully deleted records: {recordset_ids}")
-            except exceptions.ClientRequestException as e:
-                print(f"Error during batch deletion: {e.status_code} - {e.error_msg}")
-        else:
-            print("No records found to delete.")
+        for record_set in record_sets:
+            # Delete only 'A' type records that match DOMAIN_NAME
+            if record_set.type == "A" and record_set.name == domain_name + ".":
+                delete_record_set_request = DeleteRecordSetRequest(
+                    zone_id=zone_id,
+                    recordset_id=record_set.id
+                )
+                try:
+                    client.delete_record_set(delete_record_set_request)
+                    print(f"Deleted 'A' record: {record_set.name}")
+                except exceptions.ClientRequestException as e:
+                    if e.status_code == 404:
+                        print(f"Record {record_set.name} not found, skipping.")
+                    else:
+                        print(f"Error deleting DNS record: {e.status_code} - {e.error_msg}")
+                # Delay to avoid concurrency issues
+                time.sleep(1)
+            else:
+                print(f"Skipping record: {record_set.name} (type: {record_set.type})")
 
     except exceptions.ClientRequestException as e:
-        print(f"Error retrieving DNS records: {e.status_code} - {e.error_msg}")
+        print(f"Error retrieving or deleting DNS records: {e.status_code} - {e.error_msg}")
 
     # Create new 'A' DNS records
     try:
@@ -75,7 +79,7 @@ if not ip_list:
                 body={
                     "name": domain_name + ".",
                     "type": "A",
-                    "ttl": 300,
+                    "ttl": 1,
                     "records": [ip],
                     "weight": "1"
                 }
