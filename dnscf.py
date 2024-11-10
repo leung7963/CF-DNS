@@ -79,7 +79,7 @@ else:
                 body={
                     "name": domain_name + ".",
                     "type": "A",
-                    "ttl": 3600,
+                    "ttl": 600,
                     "records": [ip],
                     "weight": "1"
                 }
