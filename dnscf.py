@@ -1,5 +1,6 @@
 import os
 import requests
+import random
 from huaweicloudsdkcore.auth.credentials import BasicCredentials
 from huaweicloudsdkcore.exceptions import exceptions
 from huaweicloudsdkcore.http.http_config import HttpConfig
@@ -33,7 +34,7 @@ try:
     response = requests.get('https://raw.githubusercontent.com/leung7963/CFIPS/main/ip.js')
     response.raise_for_status()
     ip_list = response.text.splitlines()
-    print(f"Retrieved IP addresses: {ip_list}")
+    print(f"Retrieved {len(ip_list)} IP addresses")
 except requests.RequestException as e:
     print(f"Error fetching IP addresses: {str(e)}")
     ip_list = []
@@ -42,14 +43,26 @@ except requests.RequestException as e:
 if not ip_list:
     print("No IP addresses found, exiting program.")
 else:
-    # Delete only 'A' records matching the DOMAIN_NAME
+    # Deduplicate IP addresses
+    unique_ips = list(set(ip_list))
+    print(f"Found {len(unique_ips)} unique IP addresses after deduplication.")
+    
+    # Randomly select up to 20 unique IPs
+    selected_count = 20
+    if len(unique_ips) < selected_count:
+        selected_count = len(unique_ips)
+        print(f"Note: Selecting {selected_count} IPs (all available unique IPs)")
+    
+    selected_ips = random.sample(unique_ips, selected_count)
+    print(f"Randomly selected {len(selected_ips)} IPs for DNS update")
+
+    # Delete existing 'A' records
     try:
         list_record_sets_request = ListRecordSetsRequest()
         list_record_sets_request.zone_id = zone_id
         record_sets = client.list_record_sets(list_record_sets_request).recordsets
 
         for record_set in record_sets:
-            # Delete only 'A' type records that match DOMAIN_NAME
             if record_set.type == "A" and record_set.name == domain_name + ".":
                 delete_record_set_request = DeleteRecordSetRequest(
                     zone_id=zone_id,
@@ -57,23 +70,20 @@ else:
                 )
                 try:
                     client.delete_record_set(delete_record_set_request)
-                    print(f"Deleted 'A' record: {record_set.name}")
+                    print(f"Deleted old 'A' record: {record_set.name}")
                 except exceptions.ClientRequestException as e:
                     if e.status_code == 404:
                         print(f"Record {record_set.name} not found, skipping.")
                     else:
                         print(f"Error deleting DNS record: {e.status_code} - {e.error_msg}")
-                # Delay to avoid concurrency issues
                 time.sleep(1)
-            else:
-                print(f"Skipping record: {record_set.name} (type: {record_set.type})")
 
     except exceptions.ClientRequestException as e:
-        print(f"Error retrieving or deleting DNS records: {e.status_code} - {e.error_msg}")
+        print(f"Error retrieving/deleting DNS records: {e.status_code} - {e.error_msg}")
 
-    # Create new 'A' DNS records
+    # Create new 'A' records with selected IPs
     try:
-        for ip in ip_list:
+        for ip in selected_ips:
             create_record_set_request = CreateRecordSetWithLineRequest(
                 zone_id=zone_id,
                 body={
@@ -85,12 +95,11 @@ else:
                 }
             )
             try:
-                response = client.create_record_set_with_line(create_record_set_request)
+                client.create_record_set_with_line(create_record_set_request)
                 print(f"Created new 'A' record: {ip}")
             except exceptions.ClientRequestException as e:
-                print(f"Error creating DNS record: {e.status_code} - {e.error_msg}")
-            # Delay to avoid concurrency issues
+                print(f"Error creating record: {e.status_code} - {e.error_msg}")
             time.sleep(1)
-
+            
     except exceptions.ClientRequestException as e:
         print(f"Error creating DNS records: {e.status_code} - {e.error_msg}")
