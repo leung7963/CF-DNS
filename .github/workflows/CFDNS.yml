@@ -5,8 +5,8 @@ permissions:
 
 on:
   #push:
-  #schedule:
-    #- cron: '1 */6 * * *'
+  schedule:
+    - cron: '1 */6 * * *'
   workflow_dispatch:
 jobs:
   build:
