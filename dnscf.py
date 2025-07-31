@@ -23,7 +23,7 @@ headers = {
 
 # 从URL获取IP地址列表并随机选择5个
 def get_cf_speed_test_ip():
-    url = "https://raw.githubusercontent.com/leung7963/CFIPS/main/ip.txt"
+    url = "https://raw.githubusercontent.com/leung7963/CFIPS/main/ip.js"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()  # 检查HTTP错误
